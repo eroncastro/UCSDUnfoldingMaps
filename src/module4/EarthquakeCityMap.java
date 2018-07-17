@@ -1,7 +1,9 @@
 package module4;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import de.fhpotsdam.unfolding.UnfoldingMap;
 import de.fhpotsdam.unfolding.data.Feature;
@@ -33,6 +35,8 @@ public class EarthquakeCityMap extends PApplet {
 	
 	// You can ignore this.  It's to get rid of eclipse warnings
 	private static final long serialVersionUID = 1L;
+	
+	public static final int TRI_SIZE = 10; 
 
 	// IF YOU ARE WORKING OFFILINE, change the value of this variable to true
 	private static final boolean offline = false;
@@ -54,11 +58,13 @@ public class EarthquakeCityMap extends PApplet {
 	
 	// Markers for each city
 	private List<Marker> cityMarkers;
+
 	// Markers for each earthquake
 	private List<Marker> quakeMarkers;
 
 	// A List of country markers
 	private List<Marker> countryMarkers;
+	private Map<String, Integer> earthquakesCounter = new HashMap<String, Integer>();
 	
 	public void setup() {		
 		// (1) Initializing canvas and map tiles
@@ -76,11 +82,11 @@ public class EarthquakeCityMap extends PApplet {
 		
 		// FOR TESTING: Set earthquakesURL to be one of the testing files by uncommenting
 		// one of the lines below.  This will work whether you are online or offline
-		//earthquakesURL = "test1.atom";
-		//earthquakesURL = "test2.atom";
+//		earthquakesURL = "test1.atom";
+//		earthquakesURL = "test2.atom";
 		
 		// WHEN TAKING THIS QUIZ: Uncomment the next line
-		//earthquakesURL = "quiz1.atom";
+		earthquakesURL = "quiz1.atom";
 		
 		
 		// (2) Reading in earthquake data and geometric properties
@@ -94,7 +100,7 @@ public class EarthquakeCityMap extends PApplet {
 		for(Feature city : cities) {
 		  cityMarkers.add(new CityMarker(city));
 		}
-	    
+
 		//     STEP 3: read in earthquake RSS feed
 	    List<PointFeature> earthquakes = ParseFeed.parseEarthquake(this, earthquakesURL);
 	    quakeMarkers = new ArrayList<Marker>();
@@ -103,10 +109,15 @@ public class EarthquakeCityMap extends PApplet {
 		  //check if LandQuake
 		  if(isLand(feature)) {
 		    quakeMarkers.add(new LandQuakeMarker(feature));
+		    String country = feature.getProperty("country").toString();
+		    int counter = earthquakesCounter.get(country) != null ? earthquakesCounter.get(country) + 1 : 1;
+		    earthquakesCounter.put(country, counter);
 		  }
 		  // OceanQuakes
 		  else {
 		    quakeMarkers.add(new OceanQuakeMarker(feature));
+		    int counter = earthquakesCounter.get("Ocean Quakes") != null ? earthquakesCounter.get("Ocean Quakes") + 1 : 1;
+		    earthquakesCounter.put("Ocean Quakes", counter);
 		  }
 	    }
 
@@ -125,8 +136,7 @@ public class EarthquakeCityMap extends PApplet {
 	public void draw() {
 		background(0);
 		map.draw();
-		addKey();
-		
+		addKey();	
 	}
 	
 	// helper method to draw key in GUI
@@ -141,17 +151,43 @@ public class EarthquakeCityMap extends PApplet {
 		textSize(12);
 		text("Earthquake Key", 50, 75);
 		
-		fill(color(255, 0, 0));
-		ellipse(50, 125, 15, 15);
+		fill(150, 30, 30);
+		drawTriangle(60, 97);
+		
+		fill(color(255, 255, 255));
+		ellipse(60, 115, 10, 10);
+		rect(55, 130, 10, 10);
+		
 		fill(color(255, 255, 0));
-		ellipse(50, 175, 10, 10);
+		ellipse(60, 185, 10, 10);
+
 		fill(color(0, 0, 255));
-		ellipse(50, 225, 5, 5);
+		ellipse(60, 205, 10, 10);
+
+		fill(color(255, 0, 0));
+		ellipse(60, 225, 10, 10);
 		
 		fill(0, 0, 0);
-		text("5.0+ Magnitude", 75, 125);
-		text("4.0+ Magnitude", 75, 175);
-		text("Below 4.0", 75, 225);
+		text("City Marker", 75, 95);
+		text("Land Quake", 75, 115);
+		text("Ocean Quake", 75, 135);
+		text("Size ~ Magnitude", 50, 155);
+		
+		text("Shallow", 75, 185);
+		text("Intermediate", 75, 205);
+		text("Deep", 75, 225);
+	}
+	
+	private void drawTriangle(float x, float y) {
+		float x1 = x - TRI_SIZE / 2;
+		float y1 = y + (float)(Math.sqrt(3)/6) * TRI_SIZE;
+		
+		float x2 = x1 + TRI_SIZE;
+		float y2 = y1;
+		
+		float x3 = x1 + TRI_SIZE / 2;
+		float y3 = (y1 - (float)(Math.sqrt(3)/2) * TRI_SIZE);
+		triangle(x1, y1, x2, y2, x3, y3);
 	}
 
 	
@@ -161,8 +197,6 @@ public class EarthquakeCityMap extends PApplet {
 	// and returns true.  Notice that the helper method isInCountry will
 	// set this "country" property already.  Otherwise it returns false.
 	private boolean isLand(PointFeature earthquake) {
-		
-		
 		// Loop over all the country markers.  
 		// For each, check if the earthquake PointFeature is in the 
 		// country in m.  Notice that isInCountry takes a PointFeature
@@ -170,7 +204,9 @@ public class EarthquakeCityMap extends PApplet {
 		// If isInCountry ever returns true, isLand should return true.
 		for (Marker m : countryMarkers) {
 			// TODO: Finish this method using the helper method isInCountry
-			
+			if (isInCountry(earthquake, m)) {
+				return true;
+			}
 		}
 		
 		
@@ -211,7 +247,9 @@ public class EarthquakeCityMap extends PApplet {
 		//      property set.  You can get the country with:
 		//        String country = (String)m.getProperty("country");
 		
-		
+	    for (Map.Entry<String, Integer> entry : earthquakesCounter.entrySet()) {
+	        System.out.println(entry.getKey() + ": " + entry.getValue());
+	    }
 	}
 	
 	
